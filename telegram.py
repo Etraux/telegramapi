@@ -17,7 +17,7 @@ def getChatId(update):          return update["message"]["chat"]["id"]
 def getUpId(update):            return int(update["update_id"])
 def getResult(updates):         return updates["result"]
 
-# # Lambda functions to parse weather responses
+# Lambda functions to parse weather responses
 def getDesc(w):                 return w["weather"][0]["description"]
 def getTemp(w):                 return w["main"]["temp"]
 def getCity(w):                 return w["name"]
@@ -25,12 +25,13 @@ logger = logging.getLogger("weather-telegram")
 logger.setLevel(logging.DEBUG)
 
 # Cities for weather requests
-cities = ["Ростов-на-Дону", "Васильево-Петровское"]
+cities = ["London", "Paris"]
+
 def sigHandler(signal, frame):
     logger.info("SIGINT received. Exiting... Bye bye")
     sys.exit(0)
 
-    # Configure file and console logging
+# Configure file and console logging
 def configLogging():
     # Create file logger and set level to DEBUG
     # Mode = write -> clear existing log file
@@ -50,10 +51,10 @@ def configLogging():
 def parseConfig():
     global URL, URL_OWM, POLLING_TIMEOUT
     URL = "https://api.telegram.org/bot{}/".format(TOKEN)
-    URL_OWM = "http://api.openweathermap.org/data/2.5/weather?appid={}&lang=ru&units=metric".format(OWM_KEY)
+    URL_OWM = "http://api.openweathermap.org/data/2.5/weather?appid={}&lang=en&units=metric".format(OWM_KEY)
     POLLING_TIMEOUT
 
-    # Make a request to Telegram bot and get JSON response
+# Make a request to Telegram bot and get JSON response
 def makeRequest(url):
     logger.debug("URL: %s" % url)
     r = requests.get(url)
@@ -79,12 +80,12 @@ def buildKeyboard(items):
 
 def buildCitiesKeyboard():
     keyboard = [[{"text": c}] for c in cities]
-    keyboard.append([{"text": "Поделись локацией", "request_location": True}])
+    keyboard.append([{"text": "Share location", "request_location": True}])
     replyKeyboard = {"keyboard": keyboard, "one_time_keyboard": True}
     logger.debug(replyKeyboard)
     return json.dumps(replyKeyboard)
 
-    # Query OWM for the weather for place or coords
+# Query OWM for the weather for place or coords
 def getWeather(place):
     if isinstance(place, dict):     # coordinates provided
         lat, lon = place["latitude"], place["longitude"]
@@ -92,14 +93,14 @@ def getWeather(place):
         logger.info("Requesting weather: " + url)
         js = makeRequest(url)
         logger.debug(js)
-        return u"%s \N{DEGREE SIGN}C, %s в %s" % (getTemp(js), getDesc(js), getCity(js))
+        return u"%s \N{DEGREE SIGN}C, %s in %s" % (getTemp(js), getDesc(js), getCity(js))
     else:                           # place name provided 
         # make req
         url = URL_OWM + "&q={}".format(place)
         logger.info("Requesting weather: " + url)
         js = makeRequest(url)
         logger.debug(js)
-        return u"%s \N{DEGREE SIGN}C, %s в %s" % (getTemp(js), getDesc(js), getCity(js))
+        return u"%s \N{DEGREE SIGN}C, %s in %s" % (getTemp(js), getDesc(js), getCity(js))
 
 # Send URL-encoded message to chat id
 def sendMessage(text, chatId, interface=None):
@@ -117,7 +118,7 @@ def getLastUpdateId(updates):
         ids.append(getUpId(update))
     return max(ids)
 
-    # Keep track of conversation states: 'weatherReq'
+# Keep track of conversation states: 'weatherReq'
 chats = {}
 
 # Echo all messages back
@@ -140,26 +141,24 @@ def handleUpdates(updates):
         if text == "/weather":
             keyboard = buildCitiesKeyboard()
             chats[chatId] = "weatherReq"
-            sendMessage("Выбери город", chatId, keyboard)
+            sendMessage("Choose a city", chatId, keyboard)
         elif text == "/start":
-            sendMessage("Набери weather чтобы открылось меню", chatId)
+            sendMessage("Type weather to open the menu", chatId)
         elif text.startswith("/"):
-            logger.warning("Ошибка, используй корректные команды %s" % text)    
+            logger.warning("Error, use correct commands %s" % text)    
             continue
         elif (text in cities) and (chatId in chats) and (chats[chatId] == "weatherReq"):
-            logger.info("Погода для %s" % text)
+            logger.info("Weather for %s" % text)
             # Send weather to chat id and clear state
             sendMessage(getWeather(text), chatId)
             del chats[chatId]
         else:
             keyboard = buildKeyboard(["/weather"])
-            sendMessage("Я теперь могу рассказывать про погоду", chatId, keyboard)
+            sendMessage("I can now tell you about the weather", chatId, keyboard)
 
 def main():
     # Set up file and console loggers
     configLogging()
-
-
 
     # Get tokens and keys
     parseConfig()
